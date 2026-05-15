@@ -71,6 +71,7 @@ export class MeliApiService {
   try {
     // Testando um endpoint MAIS FÁCIL (Tendências no Brasil)
     // Isso nos dirá se o Render consegue falar com o ML
+    console.log("Token usado:", process.env.ACCESS_TOKEN);
     const response = await axios.get(`${this.baseUrl}/trends/MLB/1051`, {
       headers: {
         'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
