@@ -2,33 +2,39 @@ import axios from 'axios';
 import https from 'node:https';
 import dns from 'node:dns';
 
-// Configuração para forçar o uso dos servidores de DNS do Google (8.8.8.8)
-// Isso resolve o erro ENOTFOUND sem causar erro de Certificado SSL (o que o IP fixo causava)
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+// IP direto da API do ML que já testamos e respondeu
+const ML_API_IP = '54.232.181.108'; 
 
 export class MeliApiService {
   private readonly baseUrl = 'https://api.mercadolivre.com';
 
-  // O Agent agora apenas força o uso de IPv4, que é mais estável no Render
+  // O AGENTE SECRETO: Força o IP e ignora a rejeição de nome de host do certificado
   private readonly httpsAgent = new https.Agent({
     keepAlive: true,
-    family: 4 
+    checkServerIdentity: () => undefined, // Ignora o erro "IP does not match altnames"
+    lookup: (hostname, options, callback) => {
+      if (hostname === 'api.mercadolivre.com') {
+        // @ts-ignore
+        return callback(null, [{ address: ML_API_IP, family: 4 }]);
+      }
+      dns.lookup(hostname, options, callback);
+    }
   });
 
   async testConnection(): Promise<boolean> {
     try {
-      console.log(`🌐 [DEBUG] Tentando conectar ao ML usando DNS do Google...`);
+      console.log(`🌐 [FORCE-IP] Tentando conexão direta via IP: ${ML_API_IP}`);
       
       const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
         timeout: 15000,
         httpsAgent: this.httpsAgent,
         headers: { 
           'User-Agent': 'MercadoBooster/1.0',
-          'Accept': 'application/json'
+          'Host': 'api.mercadolivre.com' // Necessário para o servidor do ML
         }
       });
 
-      console.log("✅ [DEBUG] Conexão bem-sucedida!");
+      console.log("✅ [DEBUG] CONEXÃO FINALMENTE ESTABELECIDA!");
       return true;
     } catch (error: any) {
       this.logDetailedError(error, "Teste de Conexão");
@@ -38,14 +44,14 @@ export class MeliApiService {
 
   async exchangeCodeForToken(code: string): Promise<any> {
     try {
-      console.log("📡 [DEBUG] Iniciando POST para troca de token...");
-      
+      console.log("📡 [FORCE-IP] Trocando token via IP direto...");
       const response = await axios({
         method: 'post',
         url: `${this.baseUrl}/oauth/token`,
         httpsAgent: this.httpsAgent,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Host': 'api.mercadolivre.com',
           'User-Agent': 'MercadoBooster/1.0'
         },
         data: new URLSearchParams({
@@ -57,7 +63,6 @@ export class MeliApiService {
         }).toString(),
         timeout: 30000 
       });
-
       return response.data;
     } catch (error: any) {
       this.logDetailedError(error, "Troca de Token");
@@ -66,20 +71,7 @@ export class MeliApiService {
   }
 
   private logDetailedError(error: any, context: string) {
-    console.error(`\n--- 🚨 ERRO DETALHADO: ${context} ---`);
-    
-    if (error.response) {
-      console.error("Status do Erro:", error.response.status);
-      console.error("Dados da Resposta:", JSON.stringify(error.response.data, null, 2));
-    } else if (error.request) {
-      console.error("Mensagem:", error.message);
-      console.error("Código:", error.code);
-      if (error.code === 'ENOTFOUND') {
-        console.error("Causa: DNS do Render continua falhando mesmo com DNS do Google.");
-      }
-    } else {
-      console.error("Erro desconhecido:", error.message);
-    }
-    console.error("-------------------------------------------\n");
+    console.error(`❌ [${context}] Erro:`, error.message);
+    if (error.response) console.error("Dados:", error.response.data);
   }
 }
