@@ -67,23 +67,19 @@ export class MeliApiService {
 
 
 
-  async getProductDetails(itemId: string): Promise<any> {
-  // Limpa o ID caso ele venha com hífens ou espaços da extensão
-  const cleanId = itemId.replace(/[^a-zA-Z0-9]/g, '');
-
+ async getProductDetails(itemId: string): Promise<any> {
   try {
-    const response = await axios.get(`${this.baseUrl}/items/${cleanId}`, {
-      httpsAgent: this.httpsAgent,
+    // Testando um endpoint MAIS FÁCIL (Tendências no Brasil)
+    // Isso nos dirá se o Render consegue falar com o ML
+    const response = await axios.get(`${this.baseUrl}/trends/MLB/1051`, {
       headers: {
         'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-        'User-Agent': 'MercadoBooster/1.0',
-        'Accept': 'application/json'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0'
       }
     });
-
     return response.data;
   } catch (error: any) {
-    console.error(`❌ Erro ao buscar o produto ${cleanId}:`, error.message);
+    console.error("❌ Erro no teste de tendências:", error.response?.status);
     throw error;
   }
 }
