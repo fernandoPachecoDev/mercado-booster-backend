@@ -15,26 +15,36 @@ export class MeliApiService {
 
   async testConnection(): Promise<boolean> {
   try {
-    console.log(`🌐 [DEBUG] Testando conexão com headers de segurança...`);
+    console.log(`🌐 [DEBUG] Tentando furar o PolicyAgent do ML...`);
     
     const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
       timeout: 15000,
       httpsAgent: this.httpsAgent,
       headers: { 
-        // Headers essenciais para não ser bloqueado pelo PolicyAgent
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
+        // 1. User-Agent de um navegador moderno é OBRIGATÓRIO agora
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        
+        // 2. Aceitar formatos que navegadores aceitam
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept-Encoding': 'gzip, deflate, br',
+        
+        // 3. Simular uma requisição de navegação
+        'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       }
     });
 
-    console.log("✅ [DEBUG] CONEXÃO ESTABELECIDA!");
+    console.log("✅ [DEBUG] PORTA ABERTA! Conexão estabelecida.");
     return response.status === 200;
   } catch (error: any) {
-    console.error(`❌ [DEBUG] Falha na conexão: ${error.message}`);
+    console.error(`❌ [DEBUG] Falha no PolicyAgent: ${error.message}`);
     if (error.response) {
-      console.error("Detalhes do erro do ML:", error.response.data);
+      console.error("Payload de erro:", JSON.stringify(error.response.data, null, 2));
     }
     return false;
   }
