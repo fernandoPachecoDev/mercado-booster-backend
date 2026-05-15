@@ -68,29 +68,34 @@ export class MeliApiService {
 
 
  async getProductDetails(itemId: string): Promise<any> {
-  // 1. Limpa o ID (remove espaços ou caracteres extras)
   const cleanId = itemId.trim().toUpperCase();
 
   try {
-    console.log(`📡 [API] Solicitando dados oficiais para o item: ${cleanId}`);
+    console.log(`📡 [API] Tentando busca multiget para garantir localização: ${cleanId}`);
     
-    const response = await axios.get(`${this.baseUrl}/items/${cleanId}`, {
+    // Usar o endpoint /items?ids= permite que a API localize o produto globalmente
+    const response = await axios.get(`${this.baseUrl}/items`, {
       httpsAgent: this.httpsAgent,
+      params: { ids: cleanId },
       headers: {
         'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0'
+        'User-Agent': 'MercadoBooster/1.0'
       }
     });
 
-    console.log("✅ [API] Dados recebidos com sucesso!");
-    return response.data;
+    // O retorno do multiget é um array: [{ code: 200, body: {...} }]
+    const itemResult = response.data[0];
+
+    if (itemResult.code !== 200) {
+      console.error(`❌ [API] Erro interno do ML para este ID: ${itemResult.code}`);
+      throw new Error(`Erro API Mercado Livre: ${itemResult.code}`);
+    }
+
+    console.log("✅ [API] Produto localizado com sucesso!");
+    return itemResult.body;
 
   } catch (error: any) {
-    if (error.response?.status === 404) {
-      console.error(`❌ [API] O produto ${cleanId} não foi encontrado. Verifique se o ID está correto.`);
-    } else {
-      console.error(`❌ [API] Erro inesperado: ${error.response?.status} - ${error.message}`);
-    }
+    console.error(`❌ [API] Falha total na busca do item ${cleanId}:`, error.message);
     throw error;
   }
 }
