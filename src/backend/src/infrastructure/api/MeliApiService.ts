@@ -71,43 +71,35 @@ async getProductDetails(itemId: string): Promise<any> {
   const cleanId = itemId.trim().toUpperCase();
 
   try {
-    console.log(`📡 [API] Solicitando Item de Terceiro: ${cleanId}`);
+    console.log(`📡 [API] Ignorando rota bloqueada. Usando busca pública para: ${cleanId}`);
     
-    const response = await axios.get(`https://api.mercadolibre.com/sites/MLB/search?q=${cleanId}`, {
-      // Remova o httpsAgent para testar a pilha padrão do Node no Render
+    // O endpoint de busca é muito mais "liberal" que o de itens direto
+    const response = await axios.get(`${this.baseUrl}/sites/MLB/search`, {
+      params: { q: cleanId },
       headers: {
-    'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-    // User-Agent de um Chrome moderno
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    // Estes headers abaixo são os que o PolicyAgent MAIS checa
-    'Accept': 'application/json',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Sec-Fetch-Dest': 'empty',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'same-site'
-  }
+        'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0'
+      }
     });
 
-    console.log("✅ [API] SUCESSO ABSOLUTO! Dados retornados.");
-    return response.data;
+    if (response.data.results && response.data.results.length > 0) {
+      console.log("✅ [API] Produto encontrado via Busca Pública!");
+      // O Search retorna um objeto um pouco diferente, mas contém preço, título, etc.
+      return response.data.results[0]; 
+    }
+
+    throw new Error("Produto não encontrado na busca pública.");
 
   } catch (error: any) {
-    // Se der 404 aqui, vamos tentar a ÚLTIMA cartada: o endpoint de busca pública
-    if (error.response?.status === 404) {
-      console.log("⚠️ [API] 404 Direto. Tentando busca pública por ID...");
-      try {
-        const publicSearch = await axios.get(`${this.baseUrl}/sites/MLB/search?q=${cleanId}`);
-        if (publicSearch.data.results.length > 0) {
-          return publicSearch.data.results[0];
-        }
-      } catch (e) {
-        console.error("❌ [API] Falha também na busca pública.");
-      }
-    }
+    console.error(`❌ [API] Falha crítica na busca: ${error.response?.status || error.message}`);
     
-    console.error(`❌ [API] Erro Final: ${error.response?.status || error.message}`);
+    // Se até a busca der 403, o IP do Render está totalmente banido.
+    if (error.response?.status === 403) {
+      return { 
+        error: "IP_BLOCKED", 
+        message: "O Mercado Livre bloqueou o servidor do Render. Precisamos de um Proxy ou mudar de região." 
+      };
+    }
     throw error;
   }
 }
