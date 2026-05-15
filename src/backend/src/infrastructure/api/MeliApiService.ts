@@ -8,7 +8,10 @@ export class MeliApiService {
       console.log(`🌐 [DEBUG] Testando conexão com: ${this.baseUrl}/sites/MLB`);
       const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
         timeout: 15000,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: { 
+          'User-Agent': 'MercadoBooster/1.0',
+          'Accept': 'application/json'
+        }
       });
       console.log("✅ [DEBUG] Conexão bem-sucedida!");
       return true;
@@ -19,6 +22,11 @@ export class MeliApiService {
   }
 
   async exchangeCodeForToken(code: string): Promise<any> {
+    // Busca direto do process.env para não ter erro de referência
+    const clientId = process.env.MELI_CLIENT_ID;
+    const clientSecret = process.env.MELI_CLIENT_SECRET;
+    const redirectUri = process.env.VITE_MELI_REDIRECT_URI;
+
     try {
       console.log("📡 [DEBUG] Iniciando POST para troca de token...");
       const response = await axios({
@@ -26,14 +34,14 @@ export class MeliApiService {
         url: `${this.baseUrl}/oauth/token`,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0'
+          'User-Agent': 'MercadoBooster/1.0'
         },
         data: new URLSearchParams({
           grant_type: 'authorization_code',
-          client_id: process.env.MELI_CLIENT_ID || '',
-          client_secret: process.env.MELI_CLIENT_SECRET || '',
+          client_id: clientId || '',
+          client_secret: clientSecret || '',
           code: code,
-          redirect_uri: process.env.VITE_MELI_REDIRECT_URI || ''
+          redirect_uri: redirectUri || ''
         }).toString(),
         timeout: 30000 
       });
@@ -44,28 +52,13 @@ export class MeliApiService {
     }
   }
 
-  // MÉTODO AUXILIAR PARA LOG DETALHADO
   private logDetailedError(error: any, context: string) {
     console.error(`\n--- 🚨 ERRO DETALHADO: ${context} ---`);
-    
     if (error.response) {
-      // O servidor respondeu, mas com erro (ex: 400, 401, 500)
-      console.error("Status do Erro:", error.response.status);
-      console.error("Dados da Resposta:", JSON.stringify(error.response.data, null, 2));
-    } else if (error.request) {
-      // A requisição foi feita, mas não houve resposta (Timeout/Rede)
-      console.error("Mensagem:", error.message);
-      console.error("Código do Erro:", error.code);
-      console.error("IP/Host Tentado:", error.config?.url);
-      
-      // Verifica se o erro é de DNS ou Conexão
-      if (error.code === 'ENOTFOUND') console.error("Causa: DNS não conseguiu resolver o endereço.");
-      if (error.code === 'ECONNREFUSED') console.error("Causa: A conexão foi rejeitada pelo servidor ou firewall.");
-      if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
-        console.error("Causa: Timeout. O pacote de dados 'sumiu' na rede.");
-      }
+      console.error("Status:", error.response.status);
+      console.error("Dados:", JSON.stringify(error.response.data, null, 2));
     } else {
-      console.error("Erro desconhecido:", error.message);
+      console.error("Mensagem:", error.message);
     }
     console.error("-------------------------------------------\n");
   }
