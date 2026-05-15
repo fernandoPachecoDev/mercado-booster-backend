@@ -2,30 +2,37 @@ import axios from 'axios';
 import https from 'node:https';
 import dns from 'node:dns';
 
+// IP oficial da API do Mercado Livre (AWS South America)
+const ML_API_IP = '54.232.181.108'; 
+
 export class MeliApiService {
   private readonly baseUrl = 'https://api.mercadolivre.com';
 
-  // Força o agente a resolver o DNS usando IPv4, o que costuma resolver o ENOTFOUND no Render
+  // Configuração que intercepta a busca de DNS do Render
   private readonly httpsAgent = new https.Agent({
     keepAlive: true,
     lookup: (hostname, options, callback) => {
-      dns.lookup(hostname, { family: 4 }, callback);
+      if (hostname === 'api.mercadolivre.com') {
+        // Força o IP diretamente, ignorando o DNS do Render que está falhando
+        // @ts-ignore
+        return callback(null, [{ address: ML_API_IP, family: 4 }]);
+      }
+      dns.lookup(hostname, options, callback);
     }
   });
 
   async testConnection(): Promise<boolean> {
     try {
-      console.log(`🌐 [DEBUG] Tentando conexão forçada com DNS IPv4...`);
+      console.log(`🌐 [DNS-FIX] Ignorando DNS do Render e usando IP: ${ML_API_IP}`);
       const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
-        timeout: 15000,
-        httpsAgent: this.httpsAgent,
+        timeout: 10000,
+        httpsAgent: this.httpsAgent, // Usa o interceptor
         headers: { 
           'User-Agent': 'MercadoBooster/1.0',
-          'Accept': 'application/json'
+          'Host': 'api.mercadolivre.com' // Importante para o servidor do ML saber quem você quer acessar
         }
       });
-      console.log("✅ [DEBUG] Conexão bem-sucedida!");
-      return true;
+      return response.status === 200;
     } catch (error: any) {
       this.logDetailedError(error, "Teste de Conexão");
       return false;
@@ -34,14 +41,13 @@ export class MeliApiService {
 
   async exchangeCodeForToken(code: string): Promise<any> {
     try {
-      console.log("📡 [DEBUG] Iniciando POST para troca de token...");
       const response = await axios({
         method: 'post',
         url: `${this.baseUrl}/oauth/token`,
-        httpsAgent: this.httpsAgent,
+        httpsAgent: this.httpsAgent, // Também usa o interceptor aqui
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'MercadoBooster/1.0'
+          'Host': 'api.mercadolivre.com'
         },
         data: new URLSearchParams({
           grant_type: 'authorization_code',
@@ -49,8 +55,7 @@ export class MeliApiService {
           client_secret: process.env.MELI_CLIENT_SECRET || '',
           code: code,
           redirect_uri: process.env.VITE_MELI_REDIRECT_URI || ''
-        }).toString(),
-        timeout: 30000 
+        }).toString()
       });
       return response.data;
     } catch (error: any) {
@@ -59,22 +64,7 @@ export class MeliApiService {
     }
   }
 
-  // O MÉTODO QUE ESTAVA FALTANDO:
   private logDetailedError(error: any, context: string) {
-    console.error(`\n--- 🚨 ERRO DETALHADO: ${context} ---`);
-    
-    if (error.response) {
-      console.error("Status do Erro:", error.response.status);
-      console.error("Dados da Resposta:", JSON.stringify(error.response.data, null, 2));
-    } else if (error.request) {
-      console.error("Mensagem:", error.message);
-      console.error("Código do Erro:", error.code);
-      if (error.code === 'ENOTFOUND') {
-        console.error("Causa: DNS do Render não resolveu api.mercadolivre.com");
-      }
-    } else {
-      console.error("Erro desconhecido:", error.message);
-    }
-    console.error("-------------------------------------------\n");
+    console.error(`❌ [${context}] Erro:`, error.message);
   }
 }
