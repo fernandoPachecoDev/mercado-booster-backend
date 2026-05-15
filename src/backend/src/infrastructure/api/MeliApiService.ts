@@ -3,23 +3,26 @@ import axios from 'axios';
 export class MeliApiService {
   private readonly baseUrl = 'https://api.mercadolivre.com';
 
-  async testConnection(): Promise<boolean> {
-    try {
-      console.log(`🌐 [DEBUG] Testando conexão com: ${this.baseUrl}/sites/MLB`);
-      const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
-        timeout: 15000,
-        headers: { 
-          'User-Agent': 'MercadoBooster/1.0',
-          'Accept': 'application/json'
-        }
-      });
-      console.log("✅ [DEBUG] Conexão bem-sucedida!");
-      return true;
-    } catch (error: any) {
-      this.logDetailedError(error, "Teste de Conexão");
-      return false;
-    }
+ async testConnection(): Promise<boolean> {
+  try {
+    console.log(`🌐 [DEBUG] Tentando conectar com IPv4 em: ${this.baseUrl}/sites/MLB`);
+    
+    const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
+      timeout: 15000,
+      family: 4, // <--- ADICIONE ESTA LINHA AQUI
+      headers: { 
+        'User-Agent': 'MercadoBooster/1.0',
+        'Accept': 'application/json'
+      }
+    });
+
+    console.log("✅ [DEBUG] Conexão bem-sucedida!");
+    return true;
+  } catch (error: any) {
+    this.logDetailedError(error, "Teste de Conexão");
+    return false;
   }
+}
 
   async exchangeCodeForToken(code: string): Promise<any> {
     // Busca direto do process.env para não ter erro de referência
