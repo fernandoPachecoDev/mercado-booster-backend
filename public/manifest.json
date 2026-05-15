@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Mercado Booster",
+  "version": "1.0.0",
+  "description": "Mercado Booster - calcula lucro real automaticamente no Mercado Livre e Shopee.",
+
+  "permissions": ["storage", "tabs", "scripting"],
+
+  "host_permissions": [
+    "https://lista.mercadolivre.com.br/*",
+    "https://www.mercadolivre.com.br/*",
+    "https://produto.mercadolivre.com.br/*",
+    "https://shopee.com.br/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Mercado Booster"
+  },
+
+  "background": {
+    "service_worker": "src/background/background.ts",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.mercadolivre.com.br/*",
+        "https://produto.mercadolivre.com.br/*",
+        "https://shopee.com.br/*"
+      ],
+      "js": ["src/content/content.ts"]
+    }
+  ]
+}
