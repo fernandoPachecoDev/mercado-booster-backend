@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { MeliApiService } from '../../infrastructure/gateways/MeliApiService.js';
+// Ajustado de 'gateways' para 'api'
+import { MeliApiService } from '../../infrastructure/api/MeliApiService.js';
 
 export class ProductController {
   private meliService = new MeliApiService();
