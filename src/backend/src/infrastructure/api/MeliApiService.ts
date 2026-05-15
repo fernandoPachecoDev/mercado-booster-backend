@@ -1,50 +1,54 @@
 import axios from 'axios';
+import https from 'node:https';
+import dns from 'node:dns';
 
 export class MeliApiService {
   private readonly baseUrl = 'https://api.mercadolivre.com';
 
- async testConnection(): Promise<boolean> {
-  try {
-    console.log(`🌐 [DEBUG] Tentando conectar com IPv4 em: ${this.baseUrl}/sites/MLB`);
-    
-    const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
-      timeout: 15000,
-      family: 4, // <--- ADICIONE ESTA LINHA AQUI
-      headers: { 
-        'User-Agent': 'MercadoBooster/1.0',
-        'Accept': 'application/json'
-      }
-    });
+  // Força o agente a resolver o DNS usando IPv4, o que costuma resolver o ENOTFOUND no Render
+  private readonly httpsAgent = new https.Agent({
+    keepAlive: true,
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, { family: 4 }, callback);
+    }
+  });
 
-    console.log("✅ [DEBUG] Conexão bem-sucedida!");
-    return true;
-  } catch (error: any) {
-    this.logDetailedError(error, "Teste de Conexão");
-    return false;
+  async testConnection(): Promise<boolean> {
+    try {
+      console.log(`🌐 [DEBUG] Tentando conexão forçada com DNS IPv4...`);
+      const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
+        timeout: 15000,
+        httpsAgent: this.httpsAgent,
+        headers: { 
+          'User-Agent': 'MercadoBooster/1.0',
+          'Accept': 'application/json'
+        }
+      });
+      console.log("✅ [DEBUG] Conexão bem-sucedida!");
+      return true;
+    } catch (error: any) {
+      this.logDetailedError(error, "Teste de Conexão");
+      return false;
+    }
   }
-}
 
   async exchangeCodeForToken(code: string): Promise<any> {
-    // Busca direto do process.env para não ter erro de referência
-    const clientId = process.env.MELI_CLIENT_ID;
-    const clientSecret = process.env.MELI_CLIENT_SECRET;
-    const redirectUri = process.env.VITE_MELI_REDIRECT_URI;
-
     try {
       console.log("📡 [DEBUG] Iniciando POST para troca de token...");
       const response = await axios({
         method: 'post',
         url: `${this.baseUrl}/oauth/token`,
+        httpsAgent: this.httpsAgent,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': 'MercadoBooster/1.0'
         },
         data: new URLSearchParams({
           grant_type: 'authorization_code',
-          client_id: clientId || '',
-          client_secret: clientSecret || '',
+          client_id: process.env.MELI_CLIENT_ID || '',
+          client_secret: process.env.MELI_CLIENT_SECRET || '',
           code: code,
-          redirect_uri: redirectUri || ''
+          redirect_uri: process.env.VITE_MELI_REDIRECT_URI || ''
         }).toString(),
         timeout: 30000 
       });
@@ -55,13 +59,21 @@ export class MeliApiService {
     }
   }
 
+  // O MÉTODO QUE ESTAVA FALTANDO:
   private logDetailedError(error: any, context: string) {
     console.error(`\n--- 🚨 ERRO DETALHADO: ${context} ---`);
+    
     if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Dados:", JSON.stringify(error.response.data, null, 2));
-    } else {
+      console.error("Status do Erro:", error.response.status);
+      console.error("Dados da Resposta:", JSON.stringify(error.response.data, null, 2));
+    } else if (error.request) {
       console.error("Mensagem:", error.message);
+      console.error("Código do Erro:", error.code);
+      if (error.code === 'ENOTFOUND') {
+        console.error("Causa: DNS do Render não resolveu api.mercadolivre.com");
+      }
+    } else {
+      console.error("Erro desconhecido:", error.message);
     }
     console.error("-------------------------------------------\n");
   }

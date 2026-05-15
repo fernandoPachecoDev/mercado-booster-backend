@@ -3,6 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import { router } from './routes/index'; // Removido .js
 import { MeliApiService } from '../infrastructure/api/MeliApiService'; // Removido .js
+import 'dotenv/config';
+import dns from 'node:dns';
+
+// Força o Node a ignorar problemas de resolução IPv6 do datacenter
+dns.setDefaultResultOrder('ipv4first');
+
 
 const app = express();
 
