@@ -73,13 +73,21 @@ async getProductDetails(itemId: string): Promise<any> {
   try {
     console.log(`📡 [API] Solicitando Item de Terceiro: ${cleanId}`);
     
-    const response = await axios.get(`${this.baseUrl}/items/${cleanId}`, {
+    const response = await axios.get(`https://api.mercadolibre.com/sites/MLB/search?q=${cleanId}`, {
       // Remova o httpsAgent para testar a pilha padrão do Node no Render
       headers: {
-        'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-        'X-Caller-Id': '639136158', // Seu User ID obtido no log anterior
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0'
-      }
+    'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
+    // User-Agent de um Chrome moderno
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    // Estes headers abaixo são os que o PolicyAgent MAIS checa
+    'Accept': 'application/json',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site'
+  }
     });
 
     console.log("✅ [API] SUCESSO ABSOLUTO! Dados retornados.");
