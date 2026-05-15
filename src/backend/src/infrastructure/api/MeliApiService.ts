@@ -2,37 +2,34 @@ import axios from 'axios';
 import https from 'node:https';
 import dns from 'node:dns';
 
-// IP oficial da API do Mercado Livre (AWS South America)
-const ML_API_IP = '54.232.181.108'; 
+// Configuração para forçar o uso dos servidores de DNS do Google (8.8.8.8)
+// Isso resolve o erro ENOTFOUND sem causar erro de Certificado SSL (o que o IP fixo causava)
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 export class MeliApiService {
   private readonly baseUrl = 'https://api.mercadolivre.com';
 
-  // Configuração que intercepta a busca de DNS do Render
+  // O Agent agora apenas força o uso de IPv4, que é mais estável no Render
   private readonly httpsAgent = new https.Agent({
     keepAlive: true,
-    lookup: (hostname, options, callback) => {
-      if (hostname === 'api.mercadolivre.com') {
-        // Força o IP diretamente, ignorando o DNS do Render que está falhando
-        // @ts-ignore
-        return callback(null, [{ address: ML_API_IP, family: 4 }]);
-      }
-      dns.lookup(hostname, options, callback);
-    }
+    family: 4 
   });
 
   async testConnection(): Promise<boolean> {
     try {
-      console.log(`🌐 [DNS-FIX] Ignorando DNS do Render e usando IP: ${ML_API_IP}`);
+      console.log(`🌐 [DEBUG] Tentando conectar ao ML usando DNS do Google...`);
+      
       const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
-        timeout: 10000,
-        httpsAgent: this.httpsAgent, // Usa o interceptor
+        timeout: 15000,
+        httpsAgent: this.httpsAgent,
         headers: { 
           'User-Agent': 'MercadoBooster/1.0',
-          'Host': 'api.mercadolivre.com' // Importante para o servidor do ML saber quem você quer acessar
+          'Accept': 'application/json'
         }
       });
-      return response.status === 200;
+
+      console.log("✅ [DEBUG] Conexão bem-sucedida!");
+      return true;
     } catch (error: any) {
       this.logDetailedError(error, "Teste de Conexão");
       return false;
@@ -41,13 +38,15 @@ export class MeliApiService {
 
   async exchangeCodeForToken(code: string): Promise<any> {
     try {
+      console.log("📡 [DEBUG] Iniciando POST para troca de token...");
+      
       const response = await axios({
         method: 'post',
         url: `${this.baseUrl}/oauth/token`,
-        httpsAgent: this.httpsAgent, // Também usa o interceptor aqui
+        httpsAgent: this.httpsAgent,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Host': 'api.mercadolivre.com'
+          'User-Agent': 'MercadoBooster/1.0'
         },
         data: new URLSearchParams({
           grant_type: 'authorization_code',
@@ -55,8 +54,10 @@ export class MeliApiService {
           client_secret: process.env.MELI_CLIENT_SECRET || '',
           code: code,
           redirect_uri: process.env.VITE_MELI_REDIRECT_URI || ''
-        }).toString()
+        }).toString(),
+        timeout: 30000 
       });
+
       return response.data;
     } catch (error: any) {
       this.logDetailedError(error, "Troca de Token");
@@ -65,6 +66,20 @@ export class MeliApiService {
   }
 
   private logDetailedError(error: any, context: string) {
-    console.error(`❌ [${context}] Erro:`, error.message);
+    console.error(`\n--- 🚨 ERRO DETALHADO: ${context} ---`);
+    
+    if (error.response) {
+      console.error("Status do Erro:", error.response.status);
+      console.error("Dados da Resposta:", JSON.stringify(error.response.data, null, 2));
+    } else if (error.request) {
+      console.error("Mensagem:", error.message);
+      console.error("Código:", error.code);
+      if (error.code === 'ENOTFOUND') {
+        console.error("Causa: DNS do Render continua falhando mesmo com DNS do Google.");
+      }
+    } else {
+      console.error("Erro desconhecido:", error.message);
+    }
+    console.error("-------------------------------------------\n");
   }
 }
