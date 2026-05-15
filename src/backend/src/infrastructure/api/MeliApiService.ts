@@ -67,35 +67,39 @@ export class MeliApiService {
 
 
 
- async getProductDetails(itemId: string): Promise<any> {
+async getProductDetails(itemId: string): Promise<any> {
   const cleanId = itemId.trim().toUpperCase();
 
   try {
-    console.log(`📡 [API] Tentando busca multiget para garantir localização: ${cleanId}`);
+    console.log(`📡 [API] Solicitando Item de Terceiro: ${cleanId}`);
     
-    // Usar o endpoint /items?ids= permite que a API localize o produto globalmente
-    const response = await axios.get(`${this.baseUrl}/items`, {
-      httpsAgent: this.httpsAgent,
-      params: { ids: cleanId },
+    const response = await axios.get(`${this.baseUrl}/items/${cleanId}`, {
+      // Remova o httpsAgent para testar a pilha padrão do Node no Render
       headers: {
         'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-        'User-Agent': 'MercadoBooster/1.0'
+        'X-Caller-Id': '639136158', // Seu User ID obtido no log anterior
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0'
       }
     });
 
-    // O retorno do multiget é um array: [{ code: 200, body: {...} }]
-    const itemResult = response.data[0];
-
-    if (itemResult.code !== 200) {
-      console.error(`❌ [API] Erro interno do ML para este ID: ${itemResult.code}`);
-      throw new Error(`Erro API Mercado Livre: ${itemResult.code}`);
-    }
-
-    console.log("✅ [API] Produto localizado com sucesso!");
-    return itemResult.body;
+    console.log("✅ [API] SUCESSO ABSOLUTO! Dados retornados.");
+    return response.data;
 
   } catch (error: any) {
-    console.error(`❌ [API] Falha total na busca do item ${cleanId}:`, error.message);
+    // Se der 404 aqui, vamos tentar a ÚLTIMA cartada: o endpoint de busca pública
+    if (error.response?.status === 404) {
+      console.log("⚠️ [API] 404 Direto. Tentando busca pública por ID...");
+      try {
+        const publicSearch = await axios.get(`${this.baseUrl}/sites/MLB/search?q=${cleanId}`);
+        if (publicSearch.data.results.length > 0) {
+          return publicSearch.data.results[0];
+        }
+      } catch (e) {
+        console.error("❌ [API] Falha também na busca pública.");
+      }
+    }
+    
+    console.error(`❌ [API] Erro Final: ${error.response?.status || error.message}`);
     throw error;
   }
 }
