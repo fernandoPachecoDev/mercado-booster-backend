@@ -26,14 +26,16 @@ export class MeliApiService {
   async testConnection(): Promise<boolean> {
     try {
       console.log(`🌐 [FORCE-IP] Tentando conexão direta ao Brasil via IP: ${ML_BR_IP}`);
-      const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
-        timeout: 15000,
-        httpsAgent: this.httpsAgent,
-        headers: { 
-          'User-Agent': 'MercadoBooster/1.0',
-          'Host': 'api.mercadolivre.com.br' // O ML exige o Host correto no cabeçalho
-        }
-      });
+     // No testConnection
+const response = await axios.get(`${this.baseUrl}/sites/MLB`, {
+  timeout: 15000,
+  httpsAgent: this.httpsAgent,
+  headers: { 
+    'User-Agent': 'MercadoBooster/1.0',
+    'Accept': 'application/json',
+    'Host': 'api.mercadolivre.com' // Tente mudar de .com.br para .com AQUI no Host
+  }
+});
       console.log("✅ [DEBUG] CONEXÃO ESTABELECIDA VIA IP!");
       return response.status === 200;
     } catch (error: any) {
