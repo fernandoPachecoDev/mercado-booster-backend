@@ -61,5 +61,30 @@ export class MeliApiService {
       }
       throw error;
     }
+
+    
   }
+
+
+
+  async getProductDetails(itemId: string): Promise<any> {
+  // Limpa o ID caso ele venha com hífens ou espaços da extensão
+  const cleanId = itemId.replace(/[^a-zA-Z0-9]/g, '');
+
+  try {
+    const response = await axios.get(`${this.baseUrl}/items/${cleanId}`, {
+      httpsAgent: this.httpsAgent,
+      headers: {
+        'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
+        'User-Agent': 'MercadoBooster/1.0',
+        'Accept': 'application/json'
+      }
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error(`❌ Erro ao buscar o produto ${cleanId}:`, error.message);
+    throw error;
+  }
+}
 }
